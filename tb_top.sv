@@ -31,7 +31,7 @@ module tb_top;
 
   logic [3:0] golden_queue [$]; // I have used my mathematical model 'queue' hence golden queue represents a "ideal" FIFO model
   logic [3:0] expected_data; // the data I expect to arrive next
-
+  logic read_delay_flag;
   // Whenever H/W successfully writes data, the scoreboard also stores data in the perfect model
   always @(posedge clk) begin
     if (intf.we && !intf.full && intf.n_rst) begin // Check if write is valid and not full
@@ -39,10 +39,15 @@ module tb_top;
       write_count++;
     end
   end
-
+always @(posedge clk) begin
+     if (intf.re && !intf.empty && intf.n_rst)
+        read_delay_flag <= 1; // Set the flag high
+     else
+        read_delay_flag <= 0; // Reset it
+  end
   // Monitor for Read
   always @(negedge clk) begin // selected negedge to avoid race condition (more mention in logbook)
-    if (intf.re && !intf.empty && intf.n_rst) begin
+    if (read_delay_flag) begin
       // read what the math model predicts the output to be as
       expected_data = golden_queue.pop_front(); // Give me the oldest value stored AND remove it from the queue
        read_count++;                                         // pop_front means read
