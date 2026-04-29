@@ -1,4 +1,11 @@
 module fifo #(
+  
+  
+  
+  
+   // the comments in the file are just for me to understand the rtl and while writing tb it helps me refer back to these comments for quick recall.
+   
+   
    parameter WIDTH  = 4, 
    parameter DEPTH  = 12,     
    parameter ALMOST_FULL_TH  = 2,   // Raise warning near full

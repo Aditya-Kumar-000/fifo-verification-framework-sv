@@ -1,5 +1,6 @@
+`timescale 1ns/1ps
+
 module tb_top;
-  // 1. Generate the main clock
   logic clk = 0;
   always #5 clk = ~clk; // toggles every 5 unit
     int write_count = 0;
@@ -26,36 +27,35 @@ module tb_top;
   );
 
 // Scoreboard
-
   
+  logic [3:0] golden_queue [$]; // the golden queue helps keep track of expected data in FIFO
+  logic [3:0] expected_data; // we store the expected data here and then compare it later.
 
-  logic [3:0] golden_queue [$]; // I have used my mathematical model 'queue' hence golden queue represents a "ideal" FIFO model
-  logic [3:0] expected_data; // the data I expect to arrive next
-
-  // Whenever H/W successfully writes data, the scoreboard also stores data in the perfect model
+  // Write Monitor
   always @(posedge clk) begin
-    if (intf.we && !intf.full && intf.n_rst) begin // Check if write is valid and not full
-      golden_queue.push_back(intf.wrdata); // push_back = write
+    if (intf.we && !intf.full && intf.n_rst) begin // golden queue is only updated if FIFO is not full and rst is enabled and we is asserted
+      golden_queue.push_back(intf.wrdata); // the queue is updated with the incoming data
       write_count++;
     end
   end
 
-  // Monitor for Read
-  always @(negedge clk) begin // selected negedge to avoid race condition (more mention in logbook)
-    if (intf.re && !intf.empty && intf.n_rst) begin
-      // read what the math model predicts the output to be as
-      expected_data = golden_queue.pop_front(); // Give me the oldest value stored AND remove it from the queue
-       read_count++;                                         // pop_front means read
-                                            
-      // Compare the expected vs real output
-      if (expected_data !== intf.rddata) begin // if expected vs real dont match then flag error
-         $display("FATAL ERROR! Time: %0t | Expected: %0h | Got: %0h", $time, expected_data, intf.rddata);
-         $stop; // Halt the simulation
-      end 
-      
-      else begin
+  // Read Monitor 
+  always @(posedge clk) begin
+    if (intf.re && !intf.empty && intf.n_rst) begin // again we only update the expected data if FIFO is not empty and rst is enabled and re is asserted
+      expected_data = golden_queue.pop_front(); 
+      read_count++; 
+    end
+  end
+
+  // Read Monitor 
+  always @(negedge clk) begin 
+    if (read_count > match_count) begin
+      if (expected_data !== intf.rddata) begin 
+        $display("FATAL ERROR! Time: %0t | Expected: %0h | Got: %0h", $time, expected_data, intf.rddata);
+        $stop; 
+      end else begin
          $display("SUCCESS! Time: %0t | Read matched: %0h", $time, intf.rddata);
-          match_count++;
+         match_count++;
       end
     end
   end
@@ -104,13 +104,13 @@ module tb_top;
   end
   intf.we <= 0; // we initialise we, re back to 0 just to avoid any race conditions
   intf.re <= 0;
-
-    $display("Coverage Summary_FIFO");
-    $display("Total Valid Writes: %0d", write_count);
-    $display("Total Valid Reads:  %0d", read_count);
-    $display("Total Data Matches: %0d", match_count);
-    $display("Quality Score:      %0.2f%%", (match_count*100.0/read_count)); // simple formula match_cnt/read_count * 100
-    #50 $finish;
+    #100;
+  $display("Coverage Summary_FIFO");
+  $display("Total Valid Writes: %0d", write_count);
+  $display("Total Valid Reads:  %0d", read_count);
+  $display("Total Data Matches: %0d", match_count);
+  $display("Quality Score: %0.2f%%", (read_count > 0) ? (match_count*100.0/read_count) : 0.0);
+  $finish;
 
 end
 
