@@ -1,4 +1,3 @@
-`timescale 1ns/1ps
 interface fifo_if #(parameter WIDTH = 4, parameter DEPTH = 12) (input logic clk);
 logic full;
 logic almost_full;
@@ -15,8 +14,8 @@ logic [WIDTH-1:0] rddata;
     output n_rst;
     output we;
     output re;
-    output  wrdata;
-    input   rddata;
+    output [WIDTH-1:0] wrdata;
+    input [WIDTH-1:0] rddata;
     input full;
     input almost_full;
     input empty;
